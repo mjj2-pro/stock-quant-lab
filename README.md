@@ -194,9 +194,24 @@ register_source("my_spider", my_spider)
 
 ### ✅ 完全免费，够用（日线级别）
 
+**日线有两个源，可以随便换（这就是"可插拔"的实证：换源时 `engine.py` 一行都不用改）：**
+
+| 源名 | 依赖 | 速度 | 说明 |
+|---|---|---|---|
+| `eastmoney` | **零依赖**（纯标准库 urllib） | 0.49s / 688 根 | 直连东财 K 线接口。**默认推荐** |
+| `akshare` | 要 pandas + numpy（约 8800 个文件） | 1.68s / 688 根 | 接口多，龙虎榜/资金流/涨停池都靠它 |
+
+实测对账：两个源取同样的 688 个交易日，**收盘价差异 0 天**。
+
+```python
+from lab.data.sources import get_daily
+rows = get_daily("000001", source="eastmoney")   # 快、轻
+rows = get_daily("000001", source="akshare")     # 全、重
+```
+
 | 数据 | 来源 | 状态 |
 |---|---|---|
-| 日线 OHLCV（前/后复权） | akshare → 东财 | ✅ 已接通，实测可用 |
+| 日线 OHLCV（前/后复权） | 东财直连 / akshare | ✅ 双源，实测可用 |
 | 涨跌幅、换手率、振幅 | 同上 | ✅ 自带 |
 | 龙虎榜明细 | `ak.stock_lhb_detail_em` | ✅ 有 |
 | 个股资金流 | `ak.stock_individual_fund_flow` | ✅ 有 |

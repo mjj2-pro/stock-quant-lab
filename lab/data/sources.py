@@ -198,6 +198,81 @@ register_source("akshare", fetch_akshare_daily, "东方财富日线（免费，�
 
 
 # ══════════════════════════════════════════════════════════════
+# 源 2：东财直连（零依赖，只用标准库）
+# ══════════════════════════════════════════════════════════════
+
+def _secid(code: str) -> str:
+    """东财的证券编号：沪市 1.xxxxxx，深市/北交所 0.xxxxxx"""
+    c = str(code).zfill(6)
+    return ("1." if c.startswith(("6", "9", "5")) else "0.") + c
+
+
+def fetch_eastmoney_daily(code: str, start: str = "20200101", end: str = "20991231",
+                          adjust: str = "qfq") -> list[dict]:
+    """
+    直接打东财 K 线接口，**不用 akshare、不用 pandas，只用标准库**。
+
+    为什么要留这一手：
+      1. 9000 个文件的依赖链，只是为了拿几个数字，本身就不合理
+      2. akshare 挂了 / 反爬改版了，这里还有路
+      3. import akshare 要拖着 pandas+numpy 启动，这个源是秒开
+
+    接口字段（注意顺序是「开、收、高、低」，不是常见的 OHLC）：
+        f51 日期 f52 开 f53 收 f54 高 f55 低 f56 量 f57 额
+        f58 振幅 f59 涨跌幅 f60 涨跌额 f61 换手率
+    """
+    import urllib.request
+
+    fqt = {"qfq": "1", "hfq": "2", "": "0"}.get(adjust, "1")
+    url = (
+        "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+        f"?secid={_secid(code)}"
+        "&fields1=f1,f2,f3,f4,f5,f6"
+        "&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
+        f"&klt=101&fqt={fqt}&beg={start}&end={end}"
+    )
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://quote.eastmoney.com/",
+    })
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+
+    data = payload.get("data") or {}
+    klines = data.get("klines") or []
+    if not klines:
+        return []
+
+    name = data.get("name") or ""
+    pct = limit_pct(code, name)
+    rows: list[dict] = []
+    prev = 0.0
+    for line in klines:
+        p = line.split(",")
+        if len(p) < 7:
+            continue
+        o, c_, hi, lo = float(p[1]), float(p[2]), float(p[3]), float(p[4])
+        vol, amt = float(p[5]), float(p[6])
+        pc = prev if prev > 0 else o
+        lu, ld = _limit_prices(pc, pct)
+        rows.append({
+            "date": p[0][:10],
+            "open": o, "high": hi, "low": lo, "close": c_,
+            "volume": vol, "amount": amt,
+            "prev_close": pc,
+            "limit_up": lu, "limit_down": ld,
+            "suspended": vol <= 0,
+            "source": "eastmoney-direct",
+        })
+        prev = c_
+    return rows
+
+
+register_source("eastmoney", fetch_eastmoney_daily,
+                "东方财富直连（零依赖，纯标准库，不用 akshare/pandas）")
+
+
+# ══════════════════════════════════════════════════════════════
 # 统一入口
 # ══════════════════════════════════════════════════════════════
 
