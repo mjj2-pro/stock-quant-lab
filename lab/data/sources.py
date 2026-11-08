@@ -278,7 +278,7 @@ register_source("eastmoney", fetch_eastmoney_daily,
 
 def get_daily(code: str, start: str = "20200101", end: str = "20991231",
               adjust: str = "qfq", use_cache: bool = True,
-              source: str = "akshare", refresh: str = "auto") -> list[dict]:
+              source: str = "eastmoney", refresh: str = "auto") -> list[dict]:
     """
     拿日线。先看缓存，没有就打源，打完自动存缓存。
 

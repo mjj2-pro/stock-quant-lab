@@ -52,10 +52,12 @@
 ### 3. 如果你想手敲命令行
 
 ```
-E:\DSH-Work\stock\envs\lab\Scripts\python.exe lab\run_smoke.py 000001 20240101
+E:\Python314\python.exe lab\run_smoke.py 000001 20240101
 ```
 
 `000001` 换成任何 A 股代码，第二个参数是起始日期（默认 20240101）。
+
+**本项目零第三方依赖**，用系统装好的 Python 3.14 直接跑，不需要 pip install 任何东西、不需要虚拟环境。
 
 ---
 
@@ -81,21 +83,28 @@ E:\DSH-Work\stock\envs\lab\Scripts\python.exe lab\run_smoke.py 000001 20240101
 
 ```
 stock\
-├─ envs\lab\            独立 Python 环境（3.14，装了 akshare/pandas）
-│                       跟系统 Python 完全隔离，坏了删掉重建即可
+├─ 1-跑回测.bat           ← 双击：输入代码 → 出成绩单网页
+├─ 2-考场自检.bat         ← 双击：10 项作弊检测
+├─ README.md              说明书（详细资料看这里，别翻代码）
 ├─ lab\
 │   ├─ backtest\
-│   │   ├─ engine.py    ★ 考场：回测引擎
+│   │   ├─ engine.py    ★ 考场：回测引擎（零依赖）
 │   │   └─ selftest.py  ★ 作弊检测：10 项，每次改引擎都要跑
 │   ├─ data\
-│   │   ├─ sources.py   数据层：多源 + 缓存 + 插槽
+│   │   ├─ sources.py   数据层：多源 + 缓存 + 插槽（默认零依赖直连）
 │   │   └─ cache\       抓过的数据都在这儿（CSV，能直接用 Excel 打开）
 │   ├─ signals\         ★ 老师：一个文件一个信号
 │   │   └─ ma_cross.py  笨样本（均线交叉）
+│   ├─ report\
+│   │   ├─ html_report.py 成绩单渲染（内嵌 SVG，自包含）
+│   │   └─ out\           生成的 HTML
+│   ├─ bat_entry.py     双击入口的中文界面
 │   └─ run_smoke.py     端到端入口
 ├─ models\              以后接的模型（LLM / Kronos / 你自己训的）
 └─ overlay\             你的东西：自选股、笔记、人格
 ```
+
+**注意：这里没有 `envs\`、没有 `requirements.txt`。** 整个项目只用 Python 标准库。
 
 ---
 
@@ -198,8 +207,11 @@ register_source("my_spider", my_spider)
 
 | 源名 | 依赖 | 速度 | 说明 |
 |---|---|---|---|
-| `eastmoney` | **零依赖**（纯标准库 urllib） | 0.49s / 688 根 | 直连东财 K 线接口。**默认推荐** |
-| `akshare` | 要 pandas + numpy（约 8800 个文件） | 1.68s / 688 根 | 接口多，龙虎榜/资金流/涨停池都靠它 |
+| `eastmoney` | **零依赖**（纯标准库 urllib） | 0.49s / 688 根 | 直连东财 K 线接口。**本项目默认，唯一必装** |
+| `akshare` | 要 pandas + numpy（约 8800 个文件 / 214 MB） | 1.68s / 688 根 | **可选，本项目不装也不影响运行**。只有你需要龙虎榜/资金流/涨停池时才自己 `pip install akshare` |
+
+**设计取舍（明确的）：** 这个项目不接受重型依赖。日线用零依赖直连，一个第三方包都不装。
+akshare 的代码保留在 `sources.py` 里但**默认不加载**（函数内才 import），你要用就自己装，不用就当它不存在。
 
 实测对账：两个源取同样的 688 个交易日，**收盘价差异 0 天**。
 
